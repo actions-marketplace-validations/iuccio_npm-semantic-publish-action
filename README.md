@@ -4,8 +4,14 @@
 [![CodeQL](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/codeql-analysis.yml)
 [![Lint Codebase](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/linter.yml/badge.svg)](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/linter.yml)
 [![Check Transpiled JavaScript](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/check-dist.yml/badge.svg)](https://github.com/iuccio/npm-semantic-publish-action/actions/workflows/check-dist.yml)
-[![NPM Version](https://img.shields.io/npm/v/npm-semantic-publish-action.svg)](https://npmjs.org/package/npm-semantic-publish-action)
-[![Downloads](https://img.shields.io/npm/dm/npm-semantic-publish-action.svg)](https://npmjs.org/package/npm-semantic-publish-action)
+[![NPM Version](https://img.shields.io/npm/v/npm-semantic-publish.svg)](https://npmjs.org/package/npm-semantic-publish)
+[![Downloads](https://img.shields.io/npm/dm/npm-semantic-publish.svg)](https://npmjs.org/package/npm-semantic-publish)
+[![Coverage](badges/coverage.svg)](badges/coverage.svg)
+
+[![Marketplace](https://img.shields.io/badge/GitHub_Action_-iuccio%2Fnpm--semantic--publish--action%40latest-2ea44f)](https://github.com/marketplace/actions/npm-semver-publish)
+
+Follow [me](https://github.com/iuccio), and consider starring the project to
+show your :heart: and support.
 
 ## Table of Contents
 
@@ -13,188 +19,157 @@
 
 - [GitHub action to publish npm packages with semanantic versioning rules](#github-action-to-publish-npm-packages-with-semanantic-versioning-rules)
   - [Table of Contents](#table-of-contents)
-  - [Action Usage](#action-usage)
+  - [Semantic versioning over commit message](#semantic-versioning-over-commit-message)
+  - [Action usage](#action-usage)
     - [Action Parameters](#action-parameters)
-    - [Semantic versioning over commit message](#semantic-versioning-over-commit-message)
+    - [Complete action example](#complete-action-example)
+  - [Action configuration Step-by-Step](#action-configuration-step-by-step)
+    - [Step1 - Secrets Configuration](#step1---secrets-configuration)
+    - [Step 2](#step-2)
+    - [Step 3](#step-3)
+    - [Step 4](#step-4)
+    - [Step 5](#step-5)
   - [Development](#development)
-  - [How to develop the GitHub Action](#how-to-develop-the-github-action)
-  - [Validate the Action](#validate-the-action)
   - [License](#license)
   - [Buy me a Coffee](#buy-me-a-coffee)
 
 <!-- tocstop -->
 
-## Action Usage
+This action allow your project to create a new release, based on
+[semantic versionig](https://semver.org/) principles, and publish it to your npm
+registry.
 
-1. generate an access token able to make commits, tags and push them (see
-   [Managing your personal access tokens](https://docs.github.com/en/enterprise-server@3.9/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens))
-1. add the above generated token in the secret **ACTION_TOKEN** (see
-   [Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions))
-1. generate a new npm token able to publish
-   [Creating and viewing access tokens](https://docs.npmjs.com/creating-and-viewing-access-tokens)
-1. add the above generated token in the secret **NPM_TOKEN** (see
-   [Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions))
+## Semantic versioning over commit message
 
-After generating and storing the above tokens, to include the
-**npm-semver-publish-action** in your workflow in your repository, simply add
-the following script in your action yaml file:
+To generate a new version (git tag and npm package publishing), you have just to
+add to the commit message one of the following key:
+
+- **[MAJOR]** or **[major]**: new major release, e.g. v1.0.0 -> v2.0.0 will be
+  executed
+  - `git commit -m "add best feature ever [major]"`
+- **[PATCH]** or **[patch]**: new patch release, e.g. v1.0.0 -> v1.0.1 will be
+  executed
+  - `git commit -m "fix best feature ever [patch]"`
+- without any of the above keywords a new minor release will be executed, e.g.
+  v1.0.0 -> v1.1.0
+  - `git commit -m "update best feature ever"`
+
+An new release is only exeuted on the defined **target-branch** (see **Action
+Usage**)
+
+## Action usage
+
+### Action Parameters
+
+See [action.yml](action.yml)
+
+|     Name      |  Type  | Default |                Description                 |
+| :-----------: | :----: | :-----: | :----------------------------------------: |
+| target-branch | string | master  | Branch name new release should be executed |
+|  provenance   | string |  false  |           NPM package provenance           |
+
+:heavy_exclamation_mark: When the Action Parameter **provenance** is set to true
+the **id-token** permission must be set to **write**:
 
 ```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-    with:
-      token: ${{ secrets.ACTION_TOKEN }}
-  - uses: fregante/setup-git-user@v2 #used to add to git config user and mail
-    uses: actions/setup-node@v4
-    with:
-      node-version: 20.x
-      registry-url: 'https://registry.npmjs.org'
-  - name: Run my Action
-    id: run-action
-    uses: actions/npm-semver-publish-action@v1
-    with:
-      target-branch: 'master'
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+permissions:
+  id-token: write
 ```
 
-Below a complete job example:
+### Complete action example
 
 ```yaml
 on:
   push:
-    branches: main
+    branches: master #the branch name must be the same of **target-branch**
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write #allow to push on git repo
+      id-token: write #allow to publish npm package
     steps:
       - name: Checkout
       id: checkout
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.ACTION_TOKEN }}
-    - uses: fregante/setup-git-user@v2
-      uses: actions/setup-node@v4
+      uses: actions/checkout@v4 #checkout git repo
+      uses: actions/setup-node@v4 #setup node env
       with:
         node-version: 20.x
         registry-url: 'https://registry.npmjs.org'
     - name: Run my Action
       id: run-action
-      uses: actions/npm-semver-publish-action@v1
+      uses: iuccio/npm-semver-publish-action@v1.0.0 #execute npm semver publish
       with:
-        target-branch: 'master'
+        target-branch: master
+        provenance: true
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} #npm token
 ```
 
-### Action Parameters
+## Action configuration Step-by-Step
 
-See [action metadata file](action.yml)
+### Step1 - Secrets Configuration
 
-|     Name      |  Type  | Default |                                                Description                                                |
-| :-----------: | :----: | :-----: | :-------------------------------------------------------------------------------------------------------: |
-| target-branch | string | master  | Branch name where npm publish with semanantic versioning should be applied to the GitHub Action execution |
+This action requires the **NPM_TOKEN** secret configuretion:
 
-### Semantic versioning over commit message
+1. generate a new npm token able to publish
+   [Creating and viewing access tokens](https://docs.npmjs.com/creating-and-viewing-access-tokens)
+1. add the above generated token in the secret **NPM_TOKEN** (see
+   [Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions))
 
-To generate a new version you have just to add to the commit message one of the
-following string:
+### Step 2
 
-- **[MAJOR]** or **[major]**
-- **[PATCH]** or **[patch]**
+Add permissions to to push on git and publish on npm
 
-If the commit message contains the keyword:
+```yaml
+permissions:
+  contents: write
+  id-token: write
+```
 
-- **[MAJOR]** or **[major]**: new major relase, e.g. v1.0.0 -> v2.0.0
-- **[PATCH]** or **[patch]**: new patch relase, e.g. v1.0.0 -> v1.0.1
-- without any of the above keywords a new minor relase will be applied, e.g.
-  v1.0.0 -> v1.1.0
+### Step 3
 
-An new version and its publishing is only exeuted on the defined **target-branch**
+Add to the checkout action:
+
+```yaml
+uses: actions/checkout@v4
+```
+
+### Step 4
+
+Add an [actions/setup-node](https://github.com/actions/setup-node) step to your
+workflow. If you have one already, ensure that the registry-url input is set
+(e.g. to [https://registry.npmjs.org](https://registry.npmjs.org)) so that this
+action can populate your .npmrc with authentication info:
+
+```yaml
+uses: actions/setup-node@v4
+with:
+  node-version: 20.x
+  registry-url: 'https://registry.npmjs.org'
+```
+
+### Step 5
+
+add **actions/npm-semver-publish** step:
+
+```yaml
+name: Run my Action
+id: run-action
+uses: iuccio/npm-semver-publish-action@v1.0.0
+with:
+  target-branch: 'master' #where a new release is applied
+  provenance: true #if you want to publish on npm registry the provenance
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+That's it!
 
 ## Development
 
-1. :hammer_and_wrench: Install the dependencies
-
-   ```bash
-   npm install
-   ```
-
-1. :building_construction: Package the JavaScript for distribution
-
-   ```bash
-   npm run bundle
-   ```
-
-1. :white_check_mark: Run the tests
-
-   ```bash
-   npm test
-   ```
-
-## How to develop the GitHub Action
-
-[GitHub Actions Toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md).
-
-1. Create a new branch
-1. Update the contents of `src/`
-1. Add tests to `__tests__/`
-1. Format, test, and build the action
-
-   ```bash
-   npm run all
-   ```
-
-   > [!WARNING]
-   >
-   > This step is important! It will run [`ncc`](https://github.com/vercel/ncc)
-   > to build the final JavaScript action code with all dependencies included.
-   > If you do not run this step, your action will not work correctly when it is
-   > used in a workflow. This step also includes the `--license` option for
-   > `ncc`, which will create a license file for all of the production node
-   > modules used in your project.
-
-1. Commit your changes
-
-   ```bash
-   git add .
-   git commit -m "My first action is ready!"
-   ```
-
-1. Push them to your repository
-
-   ```bash
-   git push -u origin releases/v1
-   ```
-
-1. Create a pull request and get feedback on your action
-1. Merge the pull request into the `main` branch
-
-## Validate the Action
-
-You can now validate the action by referencing it in a workflow file. For
-example, [`ci.yml`](./.github/workflows/ci.yml) demonstrates how to reference an
-action in the same repository.
-
-```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v3
-
-  - name: Test Local Action
-    id: test-action
-    uses: ./
-    with:
-      target-branch: 'release'
-
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.version }}"
-```
+See [Development](DEVELOPMENT.md) for more information.
 
 ## License
 

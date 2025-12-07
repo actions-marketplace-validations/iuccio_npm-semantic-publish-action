@@ -45,18 +45,18 @@ jobs:
         run: npm run ci-test
 
   test-action:
+    needs: test-javascript
     name: GitHub Actions Test
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.ACTION_TOKEN }}
-
-      - uses: fregante/setup-git-user@v2
-
       - name: Test Local Action
         uses: actions/setup-node@v4
         with:
@@ -70,7 +70,4 @@ jobs:
         uses: ./
         with:
           target-branch: main
-
-      - name: Print Output
-        id: output
-        run: new version "${{ steps.test-action.outputs.version }}"
+          provenance: true

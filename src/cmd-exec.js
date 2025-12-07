@@ -21,7 +21,7 @@ async function getCurrentBranch() {
 }
 
 async function getCommitMessage() {
-  await exec.exec('git', ['log', '-1', `--pretty=format:%s`], options)
+  await exec.exec('git', ['log', '-1', '--pretty=format:%s'], options)
   core.debug(`current git commit msg = ${output}`)
   return output
 }
@@ -40,8 +40,13 @@ async function execNpmVersion(versioningType) {
   return output
 }
 
-async function execNpmPublish() {
-  await exec.exec('npm', ['publish'], options)
+async function execNpmPublish(provenance) {
+  if (Boolean(provenance) === true) {
+    core.debug('Executing publishing with provenance')
+    await exec.exec('npm', ['publish', '--provenance'], options)
+  } else {
+    await exec.exec('npm', ['publish'], options)
+  }
   core.debug(`new version ${output} succsessfully published`)
   core.debug(`npm = ${myError}`)
   return output
@@ -61,11 +66,33 @@ async function getLastTag() {
   return output
 }
 
+async function setupGitConfig() {
+  await exec.exec(
+    'git',
+    [
+      'config',
+      '--global',
+      'user.email',
+      '41898282+github-actions[bot]@users.noreply.github.com'
+    ],
+    options
+  )
+  await exec.exec(
+    'git',
+    ['config', '--global', 'user.name', 'dependabot'],
+    options
+  )
+  core.debug(`git config user configured: ${output}`)
+  core.debug(`npm = ${myError}`)
+  return output
+}
+
 module.exports = {
   getCommitMessage,
   getCurrentBranch,
   execNpmVersion,
   execNpmPublish,
   execGitPush,
-  getLastTag
+  getLastTag,
+  setupGitConfig
 }
